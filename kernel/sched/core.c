@@ -1599,6 +1599,10 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 		delta = window_start - mark_start;
 		if (delta > window_size)
 			delta = window_size;
+		/* If there's 1 or more full windows of IRQ busy time
+		 * then the entire prev_runnable_sum will be a window
+		 * of IRQ time - there should be no contribution from
+		 * anything else. */
 		delta = scale_exec_time(delta, rq);
 		rq->prev_runnable_sum += delta;
 
@@ -2566,6 +2570,7 @@ static int cpufreq_notifier_policy(struct notifier_block *nb,
 			if (mplsf > highest_mplsf)
 				highest_mplsf = mplsf;
 		}
+
 	}
 
 	if (update_max) {

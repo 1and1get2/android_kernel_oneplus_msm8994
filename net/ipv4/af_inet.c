@@ -134,7 +134,10 @@ static inline int current_has_network(void)
 #endif
 
 int sysctl_reserved_port_bind __read_mostly = 1;
+<<<<<<< HEAD
 
+=======
+>>>>>>> fc5bccf... [SQUASH] Update kernel for M
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
  */
