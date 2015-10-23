@@ -1599,10 +1599,10 @@ static void update_cpu_busy_time(struct task_struct *p, struct rq *rq,
 		delta = window_start - mark_start;
 		if (delta > window_size)
 			delta = window_size;
-		/* If there's 1 or more full windows of IRQ busy time
-		 * then the entire prev_runnable_sum will be a window
-		 * of IRQ time - there should be no contribution from
-		 * anything else. */
+			/* If there's 1 or more full windows of IRQ busy time
+			 * then the entire prev_runnable_sum will be a window
+			 * of IRQ time - there should be no contribution from
+			 * anything else. */
 		delta = scale_exec_time(delta, rq);
 		rq->prev_runnable_sum += delta;
 
@@ -2190,7 +2190,6 @@ void sched_get_cpus_busy(unsigned long *busy, const struct cpumask *query_cpus)
 		raw_spin_lock(&cpu_rq(cpu)->lock);
 
 	window_size = sched_ravg_window;
-
 	for_each_cpu(cpu, query_cpus) {
 		rq = cpu_rq(cpu);
 
@@ -2508,6 +2507,7 @@ static int cpufreq_notifier_policy(struct notifier_block *nb,
 	BUG_ON(!min_max_freq);
 	BUG_ON(!policy->max);
 
+
 	/*
 	 * A changed min_max_freq or max_possible_freq (possible during bootup)
 	 * needs to trigger re-computation of load_scale_factor and capacity for
@@ -2570,7 +2570,6 @@ static int cpufreq_notifier_policy(struct notifier_block *nb,
 			if (mplsf > highest_mplsf)
 				highest_mplsf = mplsf;
 		}
-
 	}
 
 	if (update_max) {
@@ -10018,11 +10017,6 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 	if (period > max_cfs_quota_period)
 		return -EINVAL;
 
-	/*
-	 * Prevent race between setting of cfs_rq->runtime_enabled and
-	 * unthrottle_offline_cfs_rqs().
-	 */
-	get_online_cpus();
 	mutex_lock(&cfs_constraints_mutex);
 	ret = __cfs_schedulable(tg, period, quota);
 	if (ret)
@@ -10044,11 +10038,12 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 	/* restart the period timer (if active) to handle new period expiry */
 	if (runtime_enabled && cfs_b->timer_active) {
 		/* force a reprogram */
-		__start_cfs_bandwidth(cfs_b, true);
+		cfs_b->timer_active = 0;
+		__start_cfs_bandwidth(cfs_b);
 	}
 	raw_spin_unlock_irq(&cfs_b->lock);
 
-	for_each_online_cpu(i) {
+	for_each_possible_cpu(i) {
 		struct cfs_rq *cfs_rq = tg->cfs_rq[i];
 		struct rq *rq = cfs_rq->rq;
 
@@ -10064,38 +10059,9 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota)
 		cfs_bandwidth_usage_dec();
 out_unlock:
 	mutex_unlock(&cfs_constraints_mutex);
-	put_online_cpus();
 
 	return ret;
 }
-
-#ifdef VENDOR_EDIT
-int tg_set_cfs_quota_per_task(struct task_group *tg, long cfs_quota_us)
-{
-	struct cfs_bandwidth *cfs_b = &tg->cfs_bandwidth;
-	u64 quota, period;
-
-	period = ktime_to_ns(tg->cfs_bandwidth.period);
-	quota = tg->cfs_bandwidth.quota;
-
-	raw_spin_lock_irq(&cfs_b->lock);
-	if (cfs_quota_us > 0)
-		cfs_b->quota_per_task = (u64)cfs_quota_us * NSEC_PER_USEC;
-	raw_spin_unlock_irq(&cfs_b->lock);
-
-	return tg_set_cfs_bandwidth(tg, period, quota);
-}
-
-long tg_get_cfs_quota_per_task(struct task_group *tg)
-{
-	u64 quota_us;
-
-	quota_us = tg->cfs_bandwidth.quota_per_task;
-	do_div(quota_us, NSEC_PER_USEC);
-
-	return quota_us;
-}
-#endif
 
 int tg_set_cfs_quota(struct task_group *tg, long cfs_quota_us)
 {
@@ -10142,19 +10108,6 @@ long tg_get_cfs_period(struct task_group *tg)
 
 	return cfs_period_us;
 }
-
-#ifdef VENDOR_EDIT
-static s64 cpu_cfs_quota_per_task_read_s64(struct cgroup *cgrp, struct cftype *cft)
-{
-	return tg_get_cfs_quota_per_task(cgroup_tg(cgrp));
-}
-
-static int cpu_cfs_quota_per_task_write_s64(struct cgroup *cgrp, struct cftype *cftype,
-				s64 cfs_quota_us)
-{
-	return tg_set_cfs_quota_per_task(cgroup_tg(cgrp), cfs_quota_us);
-}
-#endif
 
 static s64 cpu_cfs_quota_read_s64(struct cgroup *cgrp, struct cftype *cft)
 {
@@ -10316,13 +10269,6 @@ static struct cftype cpu_files[] = {
 	},
 #endif
 #ifdef CONFIG_CFS_BANDWIDTH
-#ifdef VENDOR_EDIT
-	{
-		.name = "cfs_quota_us_per_task",
-		.read_s64 = cpu_cfs_quota_per_task_read_s64,
-		.write_s64 = cpu_cfs_quota_per_task_write_s64,
-	},
-#endif
 	{
 		.name = "cfs_quota_us",
 		.read_s64 = cpu_cfs_quota_read_s64,
