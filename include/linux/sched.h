@@ -1251,10 +1251,6 @@ struct task_struct {
 
 	unsigned long atomic_flags; /* Flags needing atomic access. */
 
-<<<<<<< HEAD
-=======
-
->>>>>>> fc5bccf... [SQUASH] Update kernel for M
 	pid_t pid;
 	pid_t tgid;
 

@@ -548,11 +548,6 @@ struct rq {
 	u64 prev_runnable_sum;
 #endif
 
-	int load_avg;
-	int budget;
-	int load_history_index;
-	u64 load_last_update_timestamp;
-
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 	u64 prev_irq_time;
 #endif
